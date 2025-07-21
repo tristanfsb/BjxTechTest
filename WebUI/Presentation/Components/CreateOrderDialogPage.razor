@@ -1,0 +1,83 @@
+﻿@page "/createOrder"
+@attribute [Authorize(Roles = "Admin")]
+
+@using WebUI.ViewModels
+
+@inject HttpClient httpClient
+@inject Radzen.DialogService dialogService
+
+<RadzenStack Gap="1rem" Orientation="Orientation.Vertical" JustifyContent="JustifyContent.SpaceBetween"
+    Style="height: 100%;">
+    <RadzenStack>
+        <RadzenTemplateForm TItem="OrderViewModel" Data=@model Submit=@OnSubmit InvalidSubmit=@OnInvalidSubmit>
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="2rem" class="rz-p-6">
+
+                <RadzenFormField Text="Cliente" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="ClientName" @bind-Value="@model.ClientName" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="ClientName" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+                
+                <RadzenFormField Text="Fecha" Variant="@variant">
+                    <ChildContent>
+                        <RadzenDatePicker Name="OrderDate" @bind-Value="@model.OrderDate" DateFormat="MM/dd/yyyy"/>
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="OrderDate" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Aceptar" Style="width:100%" />
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenStack>
+</RadzenStack>
+
+
+
+@code {
+    [Parameter]
+    public EventCallback OnOrderCreated { get; set; }
+    Variant variant = Variant.Outlined;
+
+    OrderViewModel model = new OrderViewModel();
+
+    private async Task OnSubmit(OrderViewModel model)
+    {
+        if (await SaveOrder(model))
+        {
+            //callback updateTable
+            await OnOrderCreated.InvokeAsync();
+            dialogService.Close(true);
+        }
+    }
+
+    void OnInvalidSubmit(FormInvalidSubmitEventArgs args)
+    {
+        Console.WriteLine("Formulario inválido");
+    }
+
+    private async Task<Boolean> SaveOrder(OrderViewModel model)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync("Orders/Create", model);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            return false;
+        }   
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return false;
+        }
+    }
+}

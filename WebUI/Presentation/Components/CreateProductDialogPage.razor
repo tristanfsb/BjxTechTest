@@ -1,0 +1,97 @@
+﻿@page "/createProduct"
+@using WebUI.ViewModels
+
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient httpClient
+@inject Radzen.DialogService dialogService
+
+<RadzenStack Gap="1rem" Orientation="Orientation.Vertical" JustifyContent="JustifyContent.SpaceBetween"
+    Style="height: 100%;">
+    <RadzenStack>
+        <RadzenTemplateForm TItem="ProductViewModel" Data=@model Submit=@OnSubmit InvalidSubmit=@OnInvalidSubmit>
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="2rem" class="rz-p-6">
+                
+                <RadzenFormField Text="Producto" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="ProductName" @bind-Value="@model.ProductName" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="ProductName" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Descripción" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="Description" @bind-Value="@model.Description" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Description" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Stock" Variant="@variant">
+                    <ChildContent>
+                        <RadzenNumeric Name="Stock" @bind-Value=@model.Stock InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Stock" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Código" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="Code" @bind-Value="@model.Code" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Code" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Aceptar" Style="width:100%" />
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenStack>
+</RadzenStack>
+
+
+@code {
+    [Parameter]
+    public EventCallback OnProductCreated { get; set; }
+
+    Variant variant = Variant.Outlined;
+
+    ProductViewModel model = new ProductViewModel();
+
+    private async Task OnSubmit()
+    {
+        if(await SaveProduct(model))
+        {
+            await OnProductCreated.InvokeAsync();
+            dialogService.Close(true);
+        }
+    }
+
+    void OnInvalidSubmit(FormInvalidSubmitEventArgs args)
+    {
+        Console.WriteLine("Formulario inválido");
+    }
+
+    private async Task<Boolean> SaveProduct(ProductViewModel model)
+    {
+        try{
+            var response = await httpClient.PostAsJsonAsync("Products/Create", model);
+
+            if(response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            return false;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
+    }
+}

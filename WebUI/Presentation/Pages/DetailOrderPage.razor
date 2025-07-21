@@ -1,0 +1,120 @@
+﻿@page "/order/details/{orderId:int}"
+@attribute [Authorize(Roles = "Admin, Regular")]
+
+@using SharedLib.DTOs;
+@inject Radzen.DialogService dialogService
+@inject HttpClient httpClient
+
+<PageTitle>Detalle orden</PageTitle>
+
+<RadzenStack>
+    <div class="rz-display-flex rz-align-items-center"
+        style="position: relative; width: 100%; height: 3rem; padding-right: 2rem;">
+        <RadzenButton Click=@(() => OnAddClick()) Text="Agregar detalle" Icon="add_circle"
+            ButtonStyle="ButtonStyle.Primary" style="margin-left: auto;" />
+
+        <div style="position: absolute; left: 50%; transform: translateX(-50%);">
+            <RadzenText TextStyle="TextStyle.H4">Detalle del pedido</RadzenText>
+        </div>
+    </div>
+
+    <div class="rz-display-flex rz-justify-content-center rz-align-items-center">
+        <RadzenCard class="rz-shadow-6" Style="width: 100%; margin: 1rem;">
+            <RadzenDataGrid @ref="orderDetailGrid" AllowFiltering="false" FilterPopupRenderMode="PopupRenderMode.OnDemand"
+                AllowPaging="true" PageSize="5" AllowSorting="false" Data="@orderDetail" TItem="DetailOrderDetailDto">
+                <Columns>
+                    <RadzenDataGridColumn Width="50px" Title="#" TextAlign="TextAlign.Center">
+                        <Template Context="data">
+                            @(orderDetail.IndexOf(data) + 1)
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Codigo" Property="DetailOrderDetailDto.Code">
+                        <Template Context="detailOrder">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem"
+                                AlignItems="AlignItems.Center">
+                                <RadzenStack Gap="0">
+                                    <RadzenText TextStyle="TextStyle.Body1" class="rz-mb-0"> @detailOrder.Code
+                                    </RadzenText>
+                                </RadzenStack>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Cantidad" Property="DetailOrderDetailDto.Quantity">
+                        <Template Context="detailOrder">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem"
+                                AlignItems="AlignItems.Center">
+                                <RadzenStack Gap="0">
+                                    <RadzenText TextStyle="TextStyle.Body1" class="rz-mb-0"> @detailOrder.Quantity
+                                    </RadzenText>
+                                </RadzenStack>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    </div>
+
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public int orderId { get; set; }
+
+    public required RadzenDataGrid<DetailOrderDetailDto> orderDetailGrid;
+    public required IList<DetailOrderDetailDto> orderDetail;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        orderDetail = await UpdateTable(orderId);
+    }
+
+    protected async Task<IList<DetailOrderDetailDto>> UpdateTable(int orderId)
+        {
+            try
+            {
+                var response = await httpClient.GetAsync($"Orders/Details/{orderId}");
+                if(response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<IList<DetailOrderDetailDto>>();
+                    return result ?? new List<DetailOrderDetailDto>();
+                }else{
+                    return new List<DetailOrderDetailDto>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return new List<DetailOrderDetailDto>();
+            }
+        }
+    
+    private async Task RefreshOrderDetail()
+    {
+        orderDetail = await UpdateTable(orderId);
+        await orderDetailGrid.Reload();
+        StateHasChanged();
+    }
+
+    private async Task OnAddClick()
+    {
+        var parameters = new Dictionary<string, object>
+            {
+                { "OnDetailAdded", EventCallback.Factory.Create(this, RefreshOrderDetail) },
+                { "orderId" , orderId }
+            };
+        await dialogService.OpenAsync<AddDetailDialogPage>(
+            "Agregar detalle", 
+            parameters, 
+            new DialogOptions() { Width = "900px", Height = "700px" });
+    }
+
+}
+
+
+    

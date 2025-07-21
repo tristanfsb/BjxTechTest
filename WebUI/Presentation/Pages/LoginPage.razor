@@ -1,0 +1,126 @@
+﻿@page "/login"
+@using System.Security.Claims
+@using WebUI.ViewModels
+@using SharedLib.DTOs
+@using Providers
+
+@inject DialogService DialogService
+@inject HttpClient httpClient
+@inject ILocalStorageService localStorage
+@inject WasmAuthenticationStateProvider authStateProvider
+
+@inject NavigationManager navManager
+
+<PageTitle>LoginPage</PageTitle>
+
+<div class="rz-display-flex rz-justify-content-center rz-align-items-center">
+    <RadzenCard class="rz-shadow-6" Style="width: 100%; max-width: 400px; margin: 1rem;">
+        <RadzenTemplateForm TItem="LoginViewModel" Data=@model Submit=@OnSubmit InvalidSubmit=@OnInvalidSubmit>
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="2rem" class="rz-p-6">
+
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="account_circle" Style="font-size: 3rem; color: var(--rz-primary);" />
+                    <RadzenText TextStyle="TextStyle.H4" Style="margin: 0; color: var(--rz-text-color);">
+                        Iniciar Sesión
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-secondary-color);">
+                        Ingresa tus credenciales para continuar
+                    </RadzenText>
+                </RadzenStack>
+
+                <RadzenFormField Text="Correo" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="Email" @bind-Value="@model.Email" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Email" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Contraseña" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox @bind-Value="@model.Password" Visible="@(!password)" Style="width:100%" />
+                        <RadzenPassword Name="Password" @bind-Value="@model.Password" Visible="@password"
+                            Style="width:100%" />
+                    </ChildContent>
+                    <End>
+                        <RadzenButton Icon="@(password ? "visibility" : "visibility_off")" Click="TogglePassword"
+                            Variant="Variant.Text" Size="ButtonSize.Small" />
+                    </End>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Password" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Ingresar" Style="width:100%" />
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenCard>
+</div>
+
+
+@code {
+
+    Variant variant = Variant.Outlined;
+    bool password = true;
+    public LoginViewModel? Model { get; set; }
+    LoginViewModel model = new LoginViewModel();
+
+    private async Task OnSubmit(LoginViewModel model)
+    {
+        
+        // Hacer una llamada a la API del backend para obtener el JWT y crear el auth_token con los datos del JWT
+        if (await Login(model))
+        {
+            Console.WriteLine("Sesión Iniciada");
+            navManager.NavigateTo("/home");
+        }
+        else
+        {
+            await DialogService.Alert(GetMessage(), "Acceso denegado", new AlertOptions() { OkButtonText = "Aceptar" });
+        }
+    }
+
+    void OnInvalidSubmit(FormInvalidSubmitEventArgs args)
+    {
+        Console.WriteLine("Formulario inválido");
+    }
+
+    void TogglePassword()
+    {
+        password = !password;
+    }
+
+    RenderFragment GetMessage()
+    {
+        return __builder =>
+        {
+            <text>
+                Credenciasles incorrectas!
+            </text>
+        };
+    }
+
+    private async Task<Boolean> Login(LoginViewModel model)
+{
+    try
+    {
+        var response = await httpClient.PostAsJsonAsync("Auth/Login", model);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var authResponse = await response.Content.ReadFromJsonAsync<UserDetailDto>();
+            await localStorage.SetItemAsync("auth_user", authResponse);
+            authStateProvider.NotifyAuthenticationStateChanged();
+            return true;
+        }
+        return false;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+        return false;
+    }
+}
+}

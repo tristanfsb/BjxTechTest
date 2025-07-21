@@ -1,0 +1,111 @@
+﻿@page "/createUser"
+@using WebUI.ViewModels
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient httpClient
+@inject Radzen.DialogService dialogService
+
+<RadzenStack Gap="1rem" Orientation="Orientation.Vertical" JustifyContent="JustifyContent.SpaceBetween"
+    Style="height: 100%;">
+    <RadzenStack>
+        <RadzenTemplateForm TItem="UserViewModel" Data=@model Submit=@OnSubmit InvalidSubmit=@OnInvalidSubmit>
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="2rem" class="rz-p-6">
+
+                <RadzenFormField Text="Usuario" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="UserName" @bind-Value="@model.UserName" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="UserName" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Correo" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="Email" @bind-Value="@model.Email" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Email" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Contraseña" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox @bind-Value="@model.Password" Visible="@(!password)" Style="width:100%" />
+                        <RadzenPassword Name="Password" @bind-Value="@model.Password" Visible="@password"
+                            Style="width:100%" />
+                    </ChildContent>
+                    <End>
+                        <RadzenButton Icon="@(password ? "visibility" : "visibility_off")" Click="TogglePassword"
+                            Variant="Variant.Text" Size="ButtonSize.Small" />
+                    </End>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Password" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Rol" Variant="@variant">
+                    <ChildContent>
+                        <RadzenTextBox Name="Role" @bind-Value="@model.Role" Style="width:100%" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Role" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Aceptar" Style="width:100%" />
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public EventCallback OnUserCreated { get; set; }
+
+    Variant variant = Variant.Outlined;
+    bool password = true;
+    public UserViewModel? Model { get; set; }
+    UserViewModel model = new UserViewModel();
+
+    private async Task OnSubmit(UserViewModel model)
+    {
+        if (await SaveUser(model))
+        {
+            //callback updateTable
+            await OnUserCreated.InvokeAsync();
+            dialogService.Close(true);
+        }
+    }
+
+    void OnInvalidSubmit(FormInvalidSubmitEventArgs args)
+    {
+        Console.WriteLine("Formulario inválido");
+    }
+
+    void TogglePassword()
+    {
+        password = !password;
+    }
+
+    private async Task<Boolean> SaveUser(UserViewModel model)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync("Users/Create", model);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return false;
+        }
+    }
+
+}

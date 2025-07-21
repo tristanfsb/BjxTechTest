@@ -1,0 +1,29 @@
+﻿@page "/"
+@using WebUI.Providers
+@using SharedLib.DTOs;
+
+@inject ILocalStorageService localStorage
+@inject WasmAuthenticationStateProvider authStateProvider
+@inject NavigationManager NavigationManager
+@inject NavigationManager Navigation
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await localStorage.GetItemAsync<UserDetailDto>("auth_user");
+
+        if(user == null)
+        {
+            await localStorage.RemoveItemAsync("auth_user");
+            authStateProvider.NotifyAuthenticationStateChanged();
+            Navigation.NavigateTo("/login", forceLoad: false);
+        }else
+        {
+            Navigation.NavigateTo("/home", forceLoad: false);
+        }
+
+        
+    }
+}
+
+

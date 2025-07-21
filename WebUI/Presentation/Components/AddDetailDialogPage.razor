@@ -1,0 +1,117 @@
+﻿@page "/addOrderDetail"
+@attribute [Authorize(Roles = "Admin")]
+
+@using WebUI.ViewModels
+@using SharedLib.DTOs
+
+@inject HttpClient httpClient
+@inject Radzen.DialogService dialogService
+
+<RadzenStack Gap="1rem" Orientation="Orientation.Vertical" JustifyContent="JustifyContent.SpaceBetween"
+    Style="height: 100%;">
+    <RadzenStack>
+        <RadzenTemplateForm TItem="DetailOrderViewModel" Data=@model Submit=@OnSubmit InvalidSubmit=@OnInvalidSubmit>
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="2rem" class="rz-p-6">
+
+                <RadzenFormField Text="Producto" Variant="@variant">
+                    <ChildContent>
+                        <RadzenDropDown @bind-Value=@model.ProductIdFk Data=@products TextProperty="@nameof(ProductDetailDto.ProductName)" ValueProperty="@nameof(ProductDetailDto.ProductId)" Name="ProductIdFk" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="ProductIdFk" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Cantidad" Variant="@variant">
+                    <ChildContent>
+                        <RadzenNumeric Name="Quantity" @bind-Value=@model.Quantity InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenDataAnnotationValidator Component="Quantity" Style="position: absolute" />
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Aceptar" Style="width:100%" />
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenStack>
+</RadzenStack>
+
+
+@code {
+    [Parameter]
+    public EventCallback OnDetailAdded { get; set; }
+    [Parameter]
+    public int orderId { get; set; }
+    int ProductIdFk = 0;
+    Variant variant = Variant.Outlined;
+    DetailOrderViewModel model = new DetailOrderViewModel();
+    public required List<ProductDetailDto> products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        products = await updateComboProducts();
+        model.OrderIdFk = orderId;
+    }
+
+    protected async Task<List<ProductDetailDto>> updateComboProducts()
+    {
+        try
+        {
+            var response = await httpClient.GetAsync("Products");
+            if(response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<List<ProductDetailDto>>();
+                return result ?? new List<ProductDetailDto>();
+            }else
+            {
+                return new List<ProductDetailDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return new List<ProductDetailDto>();
+        }
+    }
+
+    private async Task OnSubmit(DetailOrderViewModel model)
+    {
+        if(await SaveDetail(model))
+        {
+            await OnDetailAdded.InvokeAsync();
+            dialogService.Close(true);
+        }
+    }
+
+    void OnInvalidSubmit(FormInvalidSubmitEventArgs args)
+    {
+        Console.WriteLine("Formulario inválido");
+    }
+
+    private async Task<Boolean> SaveDetail(DetailOrderViewModel model)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync("Orders/Details/Create", model);
+
+            if(response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return false;
+        }
+    }
+
+}
+
+
+    
